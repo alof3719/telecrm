@@ -58,6 +58,7 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
       ? dayjs(initialClient.next_followup_date).format('YYYY-MM-DDTHH:mm')
       : dayjs().format('YYYY-MM-DDTHH:mm')
   )
+  const [followupNote, setFollowupNote] = useState(initialClient.followup_note || '')
 
   const localTime = getClientLocalTime(client.phone)
   const city = getTimezoneLabel(client.phone)
@@ -133,7 +134,10 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
   async function handleSaveFollowup(val) {
     const { data, error } = await supabase
       .from('clients')
-      .update({ next_followup_date: val ? new Date(val).toISOString() : null })
+      .update({
+        next_followup_date: val ? new Date(val).toISOString() : null,
+        followup_note: val ? (followupNote.trim() || null) : null,
+      })
       .eq('id', client.id)
       .select()
       .single()
@@ -142,6 +146,7 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
       setForm(data)
       onUpdate(data)
       setFollowupVal(val)
+      setFollowupNote(data.followup_note || '')
     }
     setFollowupEditing(false)
   }
@@ -305,39 +310,58 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
                   ))}
                   {/* Inline editable follow-up */}
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <div className="text-muted text-sm" style={{ marginBottom: 4 }}>Next Follow-up</div>
+                    <div className="text-muted text-sm" style={{ marginBottom: 6 }}>Next Follow-up</div>
                     {followupEditing ? (
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <input
                           type="datetime-local"
                           autoFocus
                           value={followupVal}
                           min={dayjs().format('YYYY-MM-DDTHH:mm')}
                           onChange={e => setFollowupVal(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') handleSaveFollowup(followupVal); if (e.key === 'Escape') setFollowupEditing(false) }}
-                          style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14 }}
+                          onKeyDown={e => { if (e.key === 'Escape') setFollowupEditing(false) }}
+                          style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14, alignSelf: 'flex-start' }}
                         />
-                        <button className="btn btn-primary btn-sm" onClick={() => handleSaveFollowup(followupVal)}>Save</button>
-                        {client.next_followup_date && <button className="btn btn-ghost btn-sm" onClick={() => handleSaveFollowup('')}>Clear</button>}
-                        <button className="btn btn-ghost btn-sm" onClick={() => setFollowupEditing(false)}>Cancel</button>
+                        <textarea
+                          value={followupNote}
+                          onChange={e => setFollowupNote(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Escape') setFollowupEditing(false); if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSaveFollowup(followupVal) }}
+                          placeholder="Add a note for this follow-up… (optional)"
+                          rows={2}
+                          style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, resize: 'none', fontFamily: 'inherit', lineHeight: 1.5, outline: 'none' }}
+                          onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
+                          onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                        />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="btn btn-primary btn-sm" onClick={() => handleSaveFollowup(followupVal)}>Save</button>
+                          {client.next_followup_date && <button className="btn btn-ghost btn-sm" onClick={() => { setFollowupNote(''); handleSaveFollowup('') }}>Clear</button>}
+                          <button className="btn btn-ghost btn-sm" onClick={() => setFollowupEditing(false)}>Cancel</button>
+                        </div>
                       </div>
                     ) : (
                       <div
                         onClick={() => setFollowupEditing(true)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 12px', borderRadius: 7, border: '1px dashed var(--border)', background: 'var(--bg-subtle, rgba(0,0,0,0.03))', transition: 'border-color 0.15s' }}
+                        style={{ display: 'inline-flex', flexDirection: 'column', gap: 4, cursor: 'pointer', padding: '8px 12px', borderRadius: 7, border: '1px dashed var(--border)', background: 'var(--bg-subtle, rgba(0,0,0,0.03))', transition: 'border-color 0.15s', minWidth: 200 }}
                         onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
                         onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-                        title="Click to set follow-up date"
+                        title="Click to edit follow-up"
                       >
-                        <CalendarDays size={14} style={{ color: 'var(--accent)' }} />
-                        <span style={{
-                          fontWeight: 500,
-                          color: client.next_followup_date
-                            ? (client.next_followup_date < dayjs().format('YYYY-MM-DD') ? 'var(--danger)' : client.next_followup_date === dayjs().format('YYYY-MM-DD') ? 'var(--warning)' : 'inherit')
-                            : 'var(--text-muted)',
-                        }}>
-                          {client.next_followup_date ? dayjs(client.next_followup_date).format('MMM D, YYYY HH:mm') : 'Set follow-up date & time…'}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CalendarDays size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                          <span style={{
+                            fontWeight: 500,
+                            color: client.next_followup_date
+                              ? (dayjs(client.next_followup_date).isBefore(dayjs()) ? 'var(--danger)' : dayjs(client.next_followup_date).format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD') ? 'var(--warning)' : 'inherit')
+                              : 'var(--text-muted)',
+                          }}>
+                            {client.next_followup_date ? dayjs(client.next_followup_date).format('MMM D, YYYY · HH:mm') : 'Set follow-up date & time…'}
+                          </span>
+                        </div>
+                        {client.followup_note && (
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', paddingLeft: 22, lineHeight: 1.4 }}>
+                            📝 {client.followup_note}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

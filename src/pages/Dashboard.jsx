@@ -29,14 +29,21 @@ export default function Dashboard({ session }) {
   }, [])
 
   async function fetchData() {
-    const today = dayjs().format('YYYY-MM-DD')
+    const todayStart = dayjs().startOf('day').toISOString()
+    const todayEnd = dayjs().endOf('day').toISOString()
 
     const [clientsRes, followupsRes, overdueRes] = await Promise.all([
       supabase.from('clients').select('status, deal_value'),
-      supabase.from('clients').select('id, name, phone, status, company_name')
-        .eq('next_followup_date', today).order('name'),
-      supabase.from('clients').select('id, name, phone, status, company_name, next_followup_date')
-        .lt('next_followup_date', today).not('next_followup_date', 'is', null).order('next_followup_date'),
+      supabase.from('clients')
+        .select('id, name, phone, status, company_name, next_followup_date, followup_note')
+        .gte('next_followup_date', todayStart)
+        .lte('next_followup_date', todayEnd)
+        .order('next_followup_date'),
+      supabase.from('clients')
+        .select('id, name, phone, status, company_name, next_followup_date, followup_note')
+        .lt('next_followup_date', todayStart)
+        .not('next_followup_date', 'is', null)
+        .order('next_followup_date'),
     ])
 
     const clients = clientsRes.data || []
@@ -134,20 +141,34 @@ export default function Dashboard({ session }) {
           ) : (
             <div className="followup-list">
               {todayFollowups.map(c => (
-                <div key={c.id} className="followup-item">
-                  <div style={{ flex: 1 }}>
-                    <div className="followup-name">{c.name}</div>
-                    <div className="followup-phone">{c.phone} {c.company_name && `· ${c.company_name}`}</div>
+                <div key={c.id} className="followup-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div className="followup-name">{c.name}</div>
+                      <div className="followup-phone" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span>{c.phone}{c.company_name && ` · ${c.company_name}`}</span>
+                        {c.next_followup_date && (
+                          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--warning)', background: 'rgba(245,158,11,0.1)', padding: '1px 6px', borderRadius: 4 }}>
+                            🕐 {dayjs(c.next_followup_date).format('HH:mm')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <StatusBadge status={c.status} />
+                    <a
+                      href={`zoomphoneapp://call?number=${encodeURIComponent(c.phone)}`}
+                      className="btn btn-primary btn-sm"
+                      onClick={e => e.stopPropagation()}
+                      title="Call with Zoom Phone"
+                    >
+                      Call
+                    </a>
                   </div>
-                  <StatusBadge status={c.status} />
-                  <a
-                    href={`zoomphoneapp://call?number=${encodeURIComponent(c.phone)}`}
-                    className="btn btn-primary btn-sm"
-                    onClick={e => e.stopPropagation()}
-                    title="Call with Zoom Phone"
-                  >
-                    Call
-                  </a>
+                  {c.followup_note && (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg-subtle, rgba(0,0,0,0.04))', borderRadius: 6, padding: '4px 10px', borderLeft: '3px solid var(--accent)', lineHeight: 1.4 }}>
+                      📝 {c.followup_note}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

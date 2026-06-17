@@ -7,10 +7,7 @@ import Clients from './pages/Clients'
 import UsersPage from './pages/Users'
 import { LayoutDashboard, Users, LogOut, Phone, Shield } from 'lucide-react'
 
-function Layout({ session, isAdmin, companyId, fullName, onLogout }) {
-  const displayName = fullName || session.user.email.split('@')[0]
-  const avatar = (fullName || session.user.email)[0].toUpperCase()
-
+function Layout({ session, isAdmin, companyId, onLogout }) {
   return (
     <div className="app-layout">
       <aside className="sidebar">
@@ -36,11 +33,8 @@ function Layout({ session, isAdmin, companyId, fullName, onLogout }) {
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
-            <div className="user-avatar">{avatar}</div>
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
-              <div className="user-email" style={{ fontSize: 11 }}>{session.user.email}</div>
-            </div>
+            <div className="user-avatar">{session.user.email[0].toUpperCase()}</div>
+            <span className="user-email">{session.user.email}</span>
           </div>
           <button className="logout-btn" onClick={onLogout} title="Sign out">
             <LogOut size={16} />
@@ -66,17 +60,15 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const [companyId, setCompanyId] = useState(null)
-  const [fullName, setFullName] = useState('')
 
   async function fetchRole(userId) {
     const { data } = await supabase
       .from('profiles')
-      .select('role, company_id, full_name')
+      .select('role, company_id')
       .eq('id', userId)
       .single()
     setIsAdmin(data?.role === 'admin')
     setCompanyId(data?.company_id || null)
-    setFullName(data?.full_name || '')
   }
 
   useEffect(() => {
@@ -88,7 +80,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (session) fetchRole(session.user.id)
-      else { setIsAdmin(false); setCompanyId(null); setFullName('') }
+      else { setIsAdmin(false); setCompanyId(null) }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -108,7 +100,7 @@ export default function App() {
   return (
     <BrowserRouter>
       {session ? (
-        <Layout session={session} isAdmin={isAdmin} companyId={companyId} fullName={fullName} onLogout={handleLogout} />
+        <Layout session={session} isAdmin={isAdmin} companyId={companyId} onLogout={handleLogout} />
       ) : (
         <Routes>
           <Route path="*" element={<Login />} />

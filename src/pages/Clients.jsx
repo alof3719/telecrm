@@ -487,13 +487,15 @@ function AddNoteCell({ client, session, onNoteAdded }) {
 function FollowUpCell({ client, onUpdate }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState('')
+  const [note, setNote] = useState(client.followup_note || '')
   const now = dayjs()
 
   function defaultVal() { return now.format('YYYY-MM-DDTHH:mm') }
 
   useEffect(() => {
     setVal(client.next_followup_date ? dayjs(client.next_followup_date).format('YYYY-MM-DDTHH:mm') : defaultVal())
-  }, [client.next_followup_date])
+    setNote(client.followup_note || '')
+  }, [client.next_followup_date, client.followup_note])
 
   function openEditor(e) {
     e.stopPropagation()
@@ -504,7 +506,10 @@ function FollowUpCell({ client, onUpdate }) {
   async function save() {
     const { data, error } = await supabase
       .from('clients')
-      .update({ next_followup_date: val ? new Date(val).toISOString() : null })
+      .update({
+        next_followup_date: val ? new Date(val).toISOString() : null,
+        followup_note: note.trim() || null,
+      })
       .eq('id', client.id)
       .select()
       .single()
@@ -514,15 +519,25 @@ function FollowUpCell({ client, onUpdate }) {
 
   if (editing) {
     return (
-      <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 200 }}>
         <input
           type="datetime-local"
           autoFocus
           value={val}
           min={dayjs().format('YYYY-MM-DDTHH:mm')}
           onChange={e => setVal(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
+          onKeyDown={e => { if (e.key === 'Escape') setEditing(false) }}
           style={{ fontSize: 12, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', outline: 'none' }}
+        />
+        <textarea
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Escape') setEditing(false); if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) save() }}
+          placeholder="Add a note for this follow-up… (optional)"
+          rows={2}
+          style={{ fontSize: 12, padding: '4px 7px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', resize: 'none', fontFamily: 'inherit', lineHeight: 1.4 }}
+          onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
+          onBlur={e => (e.target.style.borderColor = 'var(--border)')}
         />
         <div style={{ display: 'flex', gap: 4 }}>
           <button className="btn btn-primary btn-sm" style={{ fontSize: 11, padding: '2px 8px' }} onClick={save}>Save</button>
@@ -538,18 +553,26 @@ function FollowUpCell({ client, onUpdate }) {
   return (
     <div
       onClick={openEditor}
-      title={d ? 'Click to change' : 'Click to set follow-up'}
-      style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6,
+      title={d ? 'Click to edit follow-up' : 'Click to set follow-up'}
+      style={{ cursor: 'pointer', display: 'inline-flex', flexDirection: 'column', gap: 2, padding: '3px 8px', borderRadius: 6,
         border: `1px dashed ${d ? 'transparent' : 'var(--border)'}`,
         background: d ? 'transparent' : 'var(--bg-subtle, rgba(0,0,0,0.03))',
-        transition: 'all 0.15s' }}
+        transition: 'all 0.15s', maxWidth: 180 }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'var(--bg-subtle, rgba(0,0,0,0.04))' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = d ? 'transparent' : 'var(--border)'; e.currentTarget.style.background = d ? 'transparent' : 'var(--bg-subtle, rgba(0,0,0,0.03))' }}
     >
       {d ? (
-        <span style={{ fontSize: 12, fontWeight: isOverdue || isToday ? 600 : 400, color: isOverdue ? 'var(--danger)' : isToday ? 'var(--warning)' : 'inherit' }}>
-          {dayjs(d).format('MMM D, HH:mm')}{isOverdue && ' ⚠'}
-        </span>
+        <>
+          <span style={{ fontSize: 12, fontWeight: isOverdue || isToday ? 600 : 400, color: isOverdue ? 'var(--danger)' : isToday ? 'var(--warning)' : 'inherit' }}>
+            {dayjs(d).format('MMM D, HH:mm')}{isOverdue && ' ⚠'}
+          </span>
+          {client.followup_note && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 170 }}
+              title={client.followup_note}>
+              📝 {client.followup_note}
+            </span>
+          )}
+        </>
       ) : (
         <span style={{ fontSize: 12, color: 'var(--text-muted)', opacity: 0.7 }}>+ Set date & time</span>
       )}
