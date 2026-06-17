@@ -277,11 +277,45 @@ function ImportModal({ session, companyId, onClose, onImported }) {
   )
 }
 
-function QuickNoteInline({ client, session, onNoteAdded }) {
+// Shared box dimensions for both last-note display and add-note textarea
+const NOTE_BOX = { width: 220, height: 62, fontSize: 12, borderRadius: 6, padding: '6px 9px' }
+
+function LastNoteCell({ client }) {
+  const [lastNote, setLastNote] = useState(client.last_note_content || '')
+  // keep in sync when parent re-fetches
+  useEffect(() => setLastNote(client.last_note_content || ''), [client.last_note_content])
+
+  return (
+    <div
+      title={lastNote || 'No notes yet'}
+      style={{
+        width: NOTE_BOX.width,
+        height: NOTE_BOX.height,
+        fontSize: NOTE_BOX.fontSize,
+        borderRadius: NOTE_BOX.borderRadius,
+        padding: NOTE_BOX.padding,
+        boxSizing: 'border-box',
+        background: 'var(--bg-subtle, rgba(0,0,0,0.04))',
+        border: '1px solid var(--border)',
+        color: lastNote ? 'var(--text)' : 'var(--text-muted)',
+        fontStyle: lastNote ? 'normal' : 'italic',
+        overflow: 'hidden',
+        display: '-webkit-box',
+        WebkitLineClamp: 3,
+        WebkitBoxOrient: 'vertical',
+        cursor: 'default',
+        lineHeight: '1.4',
+      }}
+    >
+      {lastNote || 'No notes yet'}
+    </div>
+  )
+}
+
+function AddNoteCell({ client, session, onNoteAdded }) {
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [lastNote, setLastNote] = useState(client.last_note_content || '')
 
   async function handleSave() {
     if (!text.trim() || saving) return
@@ -296,7 +330,6 @@ function QuickNoteInline({ client, session, onNoteAdded }) {
       await supabase.from('clients')
         .update({ last_comment_date: new Date().toISOString(), last_note_content: content })
         .eq('id', client.id)
-      setLastNote(content)
       onNoteAdded()
       setText('')
       setSaved(true)
@@ -306,52 +339,50 @@ function QuickNoteInline({ client, session, onNoteAdded }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 140 }} onClick={e => e.stopPropagation()}>
-      {/* Last note display */}
-      <div style={{
-        fontSize: 11,
-        color: 'var(--text-muted)',
-        background: 'var(--bg-subtle, rgba(0,0,0,0.04))',
-        borderRadius: 4,
-        padding: '3px 7px',
-        minHeight: 22,
-        maxWidth: 160,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        fontStyle: lastNote ? 'normal' : 'italic',
-      }} title={lastNote || ''}>
-        {lastNote || 'No notes yet'}
-      </div>
-      {/* New note input */}
-      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <input
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="Add note… ↵"
-          style={{
-            fontSize: 11,
-            padding: '3px 7px',
-            width: 120,
-            borderRadius: 5,
-            border: '1px solid var(--border)',
-            background: 'var(--bg)',
-            color: 'var(--text)',
-            outline: 'none',
-            transition: 'border-color 0.15s',
-          }}
-          onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-          onBlur={e => (e.target.style.borderColor = 'var(--border)')}
-          onKeyDown={e => e.key === 'Enter' && handleSave()}
-        />
-        {saved ? (
-          <span style={{ color: 'var(--success)', fontSize: 13 }}>✓</span>
-        ) : text.trim() ? (
-          <button className="btn btn-ghost btn-sm btn-icon" style={{ padding: '2px 4px' }} onClick={handleSave} disabled={saving}>
-            <Send size={11} />
-          </button>
-        ) : null}
-      </div>
+    <div style={{ position: 'relative', display: 'inline-block' }} onClick={e => e.stopPropagation()}>
+      <textarea
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder="Type a note and press Ctrl+Enter to save…"
+        style={{
+          width: NOTE_BOX.width,
+          height: NOTE_BOX.height,
+          fontSize: NOTE_BOX.fontSize,
+          borderRadius: NOTE_BOX.borderRadius,
+          padding: NOTE_BOX.padding,
+          boxSizing: 'border-box',
+          border: '1px solid var(--border)',
+          background: 'var(--bg)',
+          color: 'var(--text)',
+          outline: 'none',
+          resize: 'none',
+          lineHeight: '1.4',
+          transition: 'border-color 0.15s',
+          fontFamily: 'inherit',
+        }}
+        onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
+        onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+        onKeyDown={e => {
+          if ((e.key === 'Enter' && (e.ctrlKey || e.metaKey)) || (e.key === 'Enter' && !e.shiftKey && text.trim().indexOf('\n') === -1 && !e.shiftKey)) {
+            if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) return // allow newlines with plain Enter
+            e.preventDefault()
+            handleSave()
+          }
+        }}
+      />
+      {saved ? (
+        <span style={{ position: 'absolute', bottom: 5, right: 7, color: 'var(--success)', fontSize: 14, pointerEvents: 'none' }}>✓</span>
+      ) : text.trim() ? (
+        <button
+          className="btn btn-ghost btn-sm btn-icon"
+          style={{ position: 'absolute', bottom: 4, right: 5, padding: '2px 4px' }}
+          onClick={handleSave}
+          disabled={saving}
+          title="Save note (Ctrl+Enter)"
+        >
+          <Send size={12} />
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -495,9 +526,8 @@ export default function Clients({ session, isAdmin, companyId }) {
                   </th>
                   <th>Phone</th>
                   <th style={{ width: 40 }}></th>
-                  <th onClick={() => handleSort('last_call_date')} style={{ cursor: 'pointer' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Last Call / Note <SortIcon k="last_call_date" /></span>
-                  </th>
+                  <th>Last Note</th>
+                  <th>Add Note</th>
                   <th onClick={() => handleSort('company_name')} style={{ cursor: 'pointer' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Company <SortIcon k="company_name" /></span>
                   </th>
@@ -547,13 +577,13 @@ export default function Clients({ session, isAdmin, companyId }) {
                         <Phone size={14} />
                       </a>
                     </td>
-                    {/* 4 - Last Call + inline note */}
-                    <td onClick={e => e.stopPropagation()}>
-                      <QuickNoteInline
-                        client={c}
-                        session={session}
-                        onNoteAdded={fetchClients}
-                      />
+                    {/* 4 - Last Note display */}
+                    <td onClick={e => e.stopPropagation()} style={{ verticalAlign: 'middle' }}>
+                      <LastNoteCell client={c} />
+                    </td>
+                    {/* 5 - Add Note textarea */}
+                    <td onClick={e => e.stopPropagation()} style={{ verticalAlign: 'middle' }}>
+                      <AddNoteCell client={c} session={session} onNoteAdded={fetchClients} />
                     </td>
                     {/* 5+ - rest */}
                     <td className="text-muted">{c.company_name || '—'}</td>

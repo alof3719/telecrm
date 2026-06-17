@@ -7,7 +7,7 @@ import Clients from './pages/Clients'
 import UsersPage from './pages/Users'
 import { LayoutDashboard, Users, LogOut, Phone, Shield } from 'lucide-react'
 
-function Layout({ session, isAdmin, companyId, onLogout }) {
+function Layout({ session, isAdmin, onLogout }) {
   return (
     <div className="app-layout">
       <aside className="sidebar">
