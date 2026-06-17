@@ -486,15 +486,25 @@ function AddNoteCell({ client, session, onNoteAdded }) {
 
 function FollowUpCell({ client, onUpdate }) {
   const [editing, setEditing] = useState(false)
-  const [val, setVal] = useState(client.next_followup_date || '')
-  const today = dayjs().format('YYYY-MM-DD')
+  const [val, setVal] = useState('')
+  const now = dayjs()
 
-  useEffect(() => setVal(client.next_followup_date || ''), [client.next_followup_date])
+  function defaultVal() { return now.format('YYYY-MM-DDTHH:mm') }
 
-  async function save(date) {
+  useEffect(() => {
+    setVal(client.next_followup_date ? dayjs(client.next_followup_date).format('YYYY-MM-DDTHH:mm') : defaultVal())
+  }, [client.next_followup_date])
+
+  function openEditor(e) {
+    e.stopPropagation()
+    if (!client.next_followup_date) setVal(defaultVal())
+    setEditing(true)
+  }
+
+  async function save() {
     const { data, error } = await supabase
       .from('clients')
-      .update({ next_followup_date: date || null })
+      .update({ next_followup_date: val ? new Date(val).toISOString() : null })
       .eq('id', client.id)
       .select()
       .single()
@@ -504,38 +514,43 @@ function FollowUpCell({ client, onUpdate }) {
 
   if (editing) {
     return (
-      <div onClick={e => e.stopPropagation()}>
+      <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <input
-          type="date"
+          type="datetime-local"
           autoFocus
           value={val}
           onChange={e => setVal(e.target.value)}
-          onBlur={() => save(val)}
-          onKeyDown={e => { if (e.key === 'Enter') save(val); if (e.key === 'Escape') setEditing(false) }}
+          onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
           style={{ fontSize: 12, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', outline: 'none' }}
         />
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button className="btn btn-primary btn-sm" style={{ fontSize: 11, padding: '2px 8px' }} onClick={save}>Save</button>
+          <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => setEditing(false)}>Cancel</button>
+        </div>
       </div>
     )
   }
 
   const d = client.next_followup_date
+  const isOverdue = d && dayjs(d).isBefore(now)
+  const isToday = d && dayjs(d).format('YYYY-MM-DD') === now.format('YYYY-MM-DD')
   return (
     <div
-      onClick={e => { e.stopPropagation(); setEditing(true) }}
-      title={d ? 'Click to change' : 'Click to set follow-up date'}
+      onClick={openEditor}
+      title={d ? 'Click to change' : 'Click to set follow-up'}
       style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6,
         border: `1px dashed ${d ? 'transparent' : 'var(--border)'}`,
         background: d ? 'transparent' : 'var(--bg-subtle, rgba(0,0,0,0.03))',
-        transition: 'border-color 0.15s' }}
+        transition: 'all 0.15s' }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'var(--bg-subtle, rgba(0,0,0,0.04))' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = d ? 'transparent' : 'var(--border)'; e.currentTarget.style.background = d ? 'transparent' : 'var(--bg-subtle, rgba(0,0,0,0.03))' }}
     >
       {d ? (
-        <span style={{ fontSize: 13, fontWeight: d <= today ? 600 : 400, color: d < today ? 'var(--danger)' : d === today ? 'var(--warning)' : 'inherit' }}>
-          {dayjs(d).format('MMM D')}{d < today && ' ⚠'}
+        <span style={{ fontSize: 12, fontWeight: isOverdue || isToday ? 600 : 400, color: isOverdue ? 'var(--danger)' : isToday ? 'var(--warning)' : 'inherit' }}>
+          {dayjs(d).format('MMM D, HH:mm')}{isOverdue && ' ⚠'}
         </span>
       ) : (
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', opacity: 0.7 }}>+ Set date</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', opacity: 0.7 }}>+ Set date & time</span>
       )}
     </div>
   )

@@ -53,7 +53,11 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
   const [form, setForm] = useState({ ...initialClient })
   const [deleting, setDeleting] = useState(false)
   const [followupEditing, setFollowupEditing] = useState(false)
-  const [followupVal, setFollowupVal] = useState(initialClient.next_followup_date || '')
+  const [followupVal, setFollowupVal] = useState(
+    initialClient.next_followup_date
+      ? dayjs(initialClient.next_followup_date).format('YYYY-MM-DDTHH:mm')
+      : dayjs().format('YYYY-MM-DDTHH:mm')
+  )
 
   const localTime = getClientLocalTime(client.phone)
   const city = getTimezoneLabel(client.phone)
@@ -129,7 +133,7 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
   async function handleSaveFollowup(val) {
     const { data, error } = await supabase
       .from('clients')
-      .update({ next_followup_date: val || null })
+      .update({ next_followup_date: val ? new Date(val).toISOString() : null })
       .eq('id', client.id)
       .select()
       .single()
@@ -303,9 +307,9 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
                   <div style={{ gridColumn: '1 / -1' }}>
                     <div className="text-muted text-sm" style={{ marginBottom: 4 }}>Next Follow-up</div>
                     {followupEditing ? (
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         <input
-                          type="date"
+                          type="datetime-local"
                           autoFocus
                           value={followupVal}
                           onChange={e => setFollowupVal(e.target.value)}
@@ -313,7 +317,7 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
                           style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14 }}
                         />
                         <button className="btn btn-primary btn-sm" onClick={() => handleSaveFollowup(followupVal)}>Save</button>
-                        {followupVal && <button className="btn btn-ghost btn-sm" onClick={() => handleSaveFollowup('')}>Clear</button>}
+                        {client.next_followup_date && <button className="btn btn-ghost btn-sm" onClick={() => handleSaveFollowup('')}>Clear</button>}
                         <button className="btn btn-ghost btn-sm" onClick={() => setFollowupEditing(false)}>Cancel</button>
                       </div>
                     ) : (
@@ -331,7 +335,7 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
                             ? (client.next_followup_date < dayjs().format('YYYY-MM-DD') ? 'var(--danger)' : client.next_followup_date === dayjs().format('YYYY-MM-DD') ? 'var(--warning)' : 'inherit')
                             : 'var(--text-muted)',
                         }}>
-                          {client.next_followup_date ? dayjs(client.next_followup_date).format('MMM D, YYYY') : 'Set follow-up date…'}
+                          {client.next_followup_date ? dayjs(client.next_followup_date).format('MMM D, YYYY HH:mm') : 'Set follow-up date & time…'}
                         </span>
                       </div>
                     )}
