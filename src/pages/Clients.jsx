@@ -6,7 +6,20 @@ import AddClientForm from '../components/AddClientForm'
 import { getClientLocalTime, getTimezoneLabel } from '../lib/timezones'
 import dayjs from 'dayjs'
 import Papa from 'papaparse'
-import { Plus, Search, Phone, Clock, ChevronUp, ChevronDown, Upload, Download, X, CheckCircle, MessageSquarePlus, Send } from 'lucide-react'
+import { Plus, Search, Phone, Clock, ChevronUp, ChevronDown, Upload, Download, X, CheckCircle, Send } from 'lucide-react'
+
+function WhatsAppIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ display: 'block' }}>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+    </svg>
+  )
+}
+
+function whatsappUrl(phone) {
+  const digits = (phone || '').replace(/\D/g, '')
+  return `https://wa.me/${digits}`
+}
 
 const ALL_STATUSES = [
   { value: '', label: 'All Statuses' },
@@ -264,23 +277,13 @@ function ImportModal({ session, onClose, onImported }) {
   )
 }
 
-function QuickNotePopover({ client, session, onNoteAdded }) {
-  const [open, setOpen] = useState(false)
+function QuickNoteInline({ client, session, onNoteAdded }) {
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
-  const ref = useRef()
-
-  useEffect(() => {
-    if (!open) return
-    function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [open])
+  const [saved, setSaved] = useState(false)
 
   async function handleSave() {
-    if (!text.trim()) return
+    if (!text.trim() || saving) return
     setSaving(true)
     const { error } = await supabase.from('notes').insert({
       client_id: client.id,
@@ -293,62 +296,45 @@ function QuickNotePopover({ client, session, onNoteAdded }) {
         .eq('id', client.id)
       onNoteAdded()
       setText('')
-      setOpen(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
     }
     setSaving(false)
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <span style={{ fontSize: 13 }}>
-        {client.last_call_date ? dayjs(client.last_call_date).format('MMM D') : <span className="text-muted">—</span>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} onClick={e => e.stopPropagation()}>
+      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        {client.last_call_date ? dayjs(client.last_call_date).format('MMM D') : '—'}
       </span>
-      <button
-        className="btn btn-ghost btn-sm btn-icon"
-        style={{ padding: '2px 4px', opacity: 0.55 }}
-        title="Add quick note"
-        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-      >
-        <MessageSquarePlus size={13} />
-      </button>
-      {open && (
-        <div
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <input
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="note… ↵"
           style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
-            zIndex: 200,
-            background: 'var(--bg-card)',
+            fontSize: 11,
+            padding: '3px 7px',
+            width: 120,
+            borderRadius: 5,
             border: '1px solid var(--border)',
-            borderRadius: 10,
-            padding: 12,
-            width: 240,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+            background: 'var(--bg)',
+            color: 'var(--text)',
+            outline: 'none',
+            transition: 'border-color 0.15s',
           }}
-          onClick={e => e.stopPropagation()}
-        >
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
-            Note for <strong style={{ color: 'var(--text)' }}>{client.name}</strong>
-          </div>
-          <textarea
-            autoFocus
-            value={text}
-            onChange={e => setText(e.target.value)}
-            placeholder="Quick note… (Ctrl+Enter to save)"
-            style={{ width: '100%', minHeight: 72, resize: 'vertical', marginBottom: 8, fontSize: 13, boxSizing: 'border-box' }}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && e.ctrlKey) handleSave()
-              if (e.key === 'Escape') setOpen(false)
-            }}
-          />
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-            <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button>
-            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving || !text.trim()}>
-              <Send size={12} /> {saving ? '…' : 'Save'}
-            </button>
-          </div>
-        </div>
-      )}
+          onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
+          onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+          onKeyDown={e => e.key === 'Enter' && handleSave()}
+        />
+        {saved ? (
+          <span style={{ color: 'var(--success)', fontSize: 13 }}>✓</span>
+        ) : text.trim() ? (
+          <button className="btn btn-ghost btn-sm btn-icon" style={{ padding: '2px 4px' }} onClick={handleSave} disabled={saving}>
+            <Send size={11} />
+          </button>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -379,10 +365,12 @@ export default function Clients({ session, isAdmin }) {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [filterStatus, filterAssigned, sortKey, sortDir])
+  }, [filterStatus, filterAssigned, sortKey, sortDir, isAdmin])
 
   async function fetchClients() {
     let query = supabase.from('clients').select('*')
+    // Non-admins only see leads assigned to them
+    if (!isAdmin) query = query.eq('assigned_to', session.user.email)
     if (filterStatus) query = query.eq('status', filterStatus)
     if (filterAssigned) query = query.eq('assigned_to', filterAssigned)
     query = query.order(sortKey, { ascending: sortDir === 'asc', nullsFirst: false })
@@ -455,10 +443,10 @@ export default function Clients({ session, isAdmin }) {
         <select className="filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           {ALL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
-        {assignees.length > 1 && (
+        {isAdmin && assignees.length > 0 && (
           <select className="filter-select" value={filterAssigned} onChange={e => setFilterAssigned(e.target.value)}>
             <option value="">All Reps</option>
-            {assignees.map(a => <option key={a} value={a}>{a}</option>)}
+            {assignees.map(a => <option key={a} value={a}>{a.split('@')[0]}</option>)}
           </select>
         )}
         {(search || filterStatus || filterAssigned) && (
@@ -491,9 +479,11 @@ export default function Clients({ session, isAdmin }) {
                   <th>Phone</th>
                   <th style={{ width: 40 }}></th>
                   <th onClick={() => handleSort('last_call_date')} style={{ cursor: 'pointer' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Last Call <SortIcon k="last_call_date" /></span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Last Call / Note <SortIcon k="last_call_date" /></span>
                   </th>
-                  <th>Company</th>
+                  <th onClick={() => handleSort('company_name')} style={{ cursor: 'pointer' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Company <SortIcon k="company_name" /></span>
+                  </th>
                   <th onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Status <SortIcon k="status" /></span>
                   </th>
@@ -504,7 +494,9 @@ export default function Clients({ session, isAdmin }) {
                   <th onClick={() => handleSort('next_followup_date')} style={{ cursor: 'pointer' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Follow-up <SortIcon k="next_followup_date" /></span>
                   </th>
-                  <th>Assigned</th>
+                  <th onClick={() => handleSort('assigned_to')} style={{ cursor: 'pointer' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Assigned <SortIcon k="assigned_to" /></span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -512,8 +504,22 @@ export default function Clients({ session, isAdmin }) {
                   <tr key={c.id} className={rowClass(c)} onClick={() => setSelectedClient(c)}>
                     {/* 1 - Name */}
                     <td style={{ fontWeight: 600 }}>{c.name}</td>
-                    {/* 2 - Phone */}
-                    <td className="text-muted">{c.phone}</td>
+                    {/* 2 - Phone + WhatsApp */}
+                    <td onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className="text-muted" style={{ fontSize: 13 }}>{c.phone}</span>
+                        <a
+                          href={whatsappUrl(c.phone)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-ghost btn-sm btn-icon"
+                          title={`WhatsApp ${c.name}`}
+                          style={{ color: '#25D366', padding: '2px 4px', flexShrink: 0 }}
+                        >
+                          <WhatsAppIcon size={13} />
+                        </a>
+                      </div>
+                    </td>
                     {/* 3 - Call button */}
                     <td onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
                       <a
@@ -524,9 +530,9 @@ export default function Clients({ session, isAdmin }) {
                         <Phone size={14} />
                       </a>
                     </td>
-                    {/* 4 - Last Call + quick note */}
+                    {/* 4 - Last Call + inline note */}
                     <td onClick={e => e.stopPropagation()}>
-                      <QuickNotePopover
+                      <QuickNoteInline
                         client={c}
                         session={session}
                         onNoteAdded={fetchClients}
