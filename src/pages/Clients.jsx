@@ -6,7 +6,7 @@ import AddClientForm from '../components/AddClientForm'
 import { getClientLocalTime, getTimezoneLabel } from '../lib/timezones'
 import dayjs from 'dayjs'
 import Papa from 'papaparse'
-import { Plus, Search, Phone, Clock, ChevronUp, ChevronDown, Upload, Download, X, CheckCircle, AlertCircle } from 'lucide-react'
+import { Plus, Search, Phone, Clock, ChevronUp, ChevronDown, Upload, Download, X, CheckCircle, MessageSquarePlus, Send } from 'lucide-react'
 
 const ALL_STATUSES = [
   { value: '', label: 'All Statuses' },
@@ -264,6 +264,95 @@ function ImportModal({ session, onClose, onImported }) {
   )
 }
 
+function QuickNotePopover({ client, session, onNoteAdded }) {
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState('')
+  const [saving, setSaving] = useState(false)
+  const ref = useRef()
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  async function handleSave() {
+    if (!text.trim()) return
+    setSaving(true)
+    const { error } = await supabase.from('notes').insert({
+      client_id: client.id,
+      content: text.trim(),
+      created_by: session.user.email,
+    })
+    if (!error) {
+      await supabase.from('clients')
+        .update({ last_comment_date: new Date().toISOString() })
+        .eq('id', client.id)
+      onNoteAdded()
+      setText('')
+      setOpen(false)
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ fontSize: 13 }}>
+        {client.last_call_date ? dayjs(client.last_call_date).format('MMM D') : <span className="text-muted">—</span>}
+      </span>
+      <button
+        className="btn btn-ghost btn-sm btn-icon"
+        style={{ padding: '2px 4px', opacity: 0.55 }}
+        title="Add quick note"
+        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
+      >
+        <MessageSquarePlus size={13} />
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            zIndex: 200,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            padding: 12,
+            width: 240,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
+            Note for <strong style={{ color: 'var(--text)' }}>{client.name}</strong>
+          </div>
+          <textarea
+            autoFocus
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="Quick note… (Ctrl+Enter to save)"
+            style={{ width: '100%', minHeight: 72, resize: 'vertical', marginBottom: 8, fontSize: 13, boxSizing: 'border-box' }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && e.ctrlKey) handleSave()
+              if (e.key === 'Escape') setOpen(false)
+            }}
+          />
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button>
+            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving || !text.trim()}>
+              <Send size={12} /> {saving ? '…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Clients({ session, isAdmin }) {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
@@ -400,6 +489,10 @@ export default function Clients({ session, isAdmin }) {
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Name <SortIcon k="name" /></span>
                   </th>
                   <th>Phone</th>
+                  <th style={{ width: 40 }}></th>
+                  <th onClick={() => handleSort('last_call_date')} style={{ cursor: 'pointer' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Last Call <SortIcon k="last_call_date" /></span>
+                  </th>
                   <th>Company</th>
                   <th onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Status <SortIcon k="status" /></span>
@@ -412,17 +505,34 @@ export default function Clients({ session, isAdmin }) {
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Follow-up <SortIcon k="next_followup_date" /></span>
                   </th>
                   <th>Assigned</th>
-                  <th onClick={() => handleSort('last_call_date')} style={{ cursor: 'pointer' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Last Call <SortIcon k="last_call_date" /></span>
-                  </th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(c => (
                   <tr key={c.id} className={rowClass(c)} onClick={() => setSelectedClient(c)}>
+                    {/* 1 - Name */}
                     <td style={{ fontWeight: 600 }}>{c.name}</td>
+                    {/* 2 - Phone */}
                     <td className="text-muted">{c.phone}</td>
+                    {/* 3 - Call button */}
+                    <td onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                      <a
+                        href={`zoomphoneapp://call?number=${encodeURIComponent(c.phone)}`}
+                        className="btn btn-ghost btn-sm btn-icon"
+                        title={`Call ${c.name}`}
+                      >
+                        <Phone size={14} />
+                      </a>
+                    </td>
+                    {/* 4 - Last Call + quick note */}
+                    <td onClick={e => e.stopPropagation()}>
+                      <QuickNotePopover
+                        client={c}
+                        session={session}
+                        onNoteAdded={fetchClients}
+                      />
+                    </td>
+                    {/* 5+ - rest */}
                     <td className="text-muted">{c.company_name || '—'}</td>
                     <td><StatusBadge status={c.status} /></td>
                     <td><LocalTimeBadge phone={c.phone} /></td>
@@ -440,18 +550,6 @@ export default function Clients({ session, isAdmin }) {
                       ) : '—'}
                     </td>
                     <td className="text-sm text-muted">{c.assigned_to ? c.assigned_to.split('@')[0] : '—'}</td>
-                    <td>
-                      {c.last_call_date ? dayjs(c.last_call_date).format('MMM D') : <span className="text-muted">—</span>}
-                    </td>
-                    <td onClick={e => e.stopPropagation()}>
-                      <a
-                        href={`zoomphoneapp://call?number=${encodeURIComponent(c.phone)}`}
-                        className="btn btn-ghost btn-sm btn-icon"
-                        title={`Call ${c.name}`}
-                      >
-                        <Phone size={14} />
-                      </a>
-                    </td>
                   </tr>
                 ))}
               </tbody>
