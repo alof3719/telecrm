@@ -281,19 +281,22 @@ function QuickNoteInline({ client, session, onNoteAdded }) {
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [lastNote, setLastNote] = useState(client.last_note_content || '')
 
   async function handleSave() {
     if (!text.trim() || saving) return
     setSaving(true)
+    const content = text.trim()
     const { error } = await supabase.from('notes').insert({
       client_id: client.id,
-      content: text.trim(),
+      content,
       created_by: session.user.email,
     })
     if (!error) {
       await supabase.from('clients')
-        .update({ last_comment_date: new Date().toISOString() })
+        .update({ last_comment_date: new Date().toISOString(), last_note_content: content })
         .eq('id', client.id)
+      setLastNote(content)
       onNoteAdded()
       setText('')
       setSaved(true)
@@ -303,15 +306,29 @@ function QuickNoteInline({ client, session, onNoteAdded }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} onClick={e => e.stopPropagation()}>
-      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-        {client.last_call_date ? dayjs(client.last_call_date).format('MMM D') : '—'}
-      </span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 140 }} onClick={e => e.stopPropagation()}>
+      {/* Last note display */}
+      <div style={{
+        fontSize: 11,
+        color: 'var(--text-muted)',
+        background: 'var(--bg-subtle, rgba(0,0,0,0.04))',
+        borderRadius: 4,
+        padding: '3px 7px',
+        minHeight: 22,
+        maxWidth: 160,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        fontStyle: lastNote ? 'normal' : 'italic',
+      }} title={lastNote || ''}>
+        {lastNote || 'No notes yet'}
+      </div>
+      {/* New note input */}
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <input
           value={text}
           onChange={e => setText(e.target.value)}
-          placeholder="note… ↵"
+          placeholder="Add note… ↵"
           style={{
             fontSize: 11,
             padding: '3px 7px',
