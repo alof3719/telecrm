@@ -6,7 +6,7 @@ import AddClientForm from '../components/AddClientForm'
 import { getClientLocalTime, getTimezoneLabel } from '../lib/timezones'
 import dayjs from 'dayjs'
 import Papa from 'papaparse'
-import { Plus, Search, Phone, Clock, ChevronUp, ChevronDown, Upload, Download, X, CheckCircle, Send } from 'lucide-react'
+import { Plus, Search, Phone, Clock, ChevronUp, ChevronDown, Upload, Download, X, CheckCircle, Send, Settings2 } from 'lucide-react'
 
 function WhatsAppIcon({ size = 14 }) {
   return (
@@ -42,6 +42,103 @@ const COLUMN_MAP = {
   assigned_to: ['assigned', 'assigned to', 'rep', 'sales rep', 'agent'],
   notes: ['notes', 'note', 'comments', 'comment', 'description'],
   next_followup_date: ['followup', 'follow up', 'follow-up date', 'next followup', 'next follow-up'],
+}
+
+// ── Column definitions & persistence ──────────────────────────────────────────
+const COLUMN_DEFS = [
+  { key: 'name',               label: 'Name',        sortKey: 'name' },
+  { key: 'phone',              label: 'Phone',       sortKey: null },
+  { key: 'call',               label: '',            sortKey: null },
+  { key: 'last_note',          label: 'Last Note',   sortKey: null },
+  { key: 'add_note',           label: 'Add Note',    sortKey: null },
+  { key: 'company_name',       label: 'Company',     sortKey: 'company_name' },
+  { key: 'status',             label: 'Status',      sortKey: 'status' },
+  { key: 'client_time',        label: 'Client Time', sortKey: null },
+  { key: 'deal_value',         label: 'Deal',        sortKey: 'deal_value' },
+  { key: 'next_followup_date', label: 'Follow-up',   sortKey: 'next_followup_date' },
+  { key: 'assigned_to',        label: 'Assigned',    sortKey: 'assigned_to' },
+].map(c => ({ ...c, visible: true }))
+
+const COL_STORAGE = 'telecrm_cols_v1'
+
+function loadColumnPrefs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COL_STORAGE) || 'null')
+    if (!saved) return COLUMN_DEFS
+    // Merge: respect saved order + visibility, add any new cols at end
+    const savedMap = Object.fromEntries(saved.map(c => [c.key, c]))
+    const merged = saved
+      .map(s => { const def = COLUMN_DEFS.find(d => d.key === s.key); return def ? { ...def, visible: s.visible } : null })
+      .filter(Boolean)
+    COLUMN_DEFS.forEach(d => { if (!savedMap[d.key]) merged.push(d) })
+    return merged
+  } catch { return COLUMN_DEFS }
+}
+
+function saveColumnPrefs(cols) {
+  localStorage.setItem(COL_STORAGE, JSON.stringify(cols.map(c => ({ key: c.key, visible: c.visible }))))
+}
+
+// ── Column organizer dropdown ──────────────────────────────────────────────────
+function ColumnOrganizer({ columns, onChange }) {
+  const [open, setOpen] = useState(false)
+
+  function toggle(key) {
+    onChange(columns.map(c => c.key === key ? { ...c, visible: !c.visible } : c))
+  }
+  function move(i, dir) {
+    const next = [...columns]
+    const j = i + dir
+    if (j < 0 || j >= next.length) return
+    ;[next[i], next[j]] = [next[j], next[i]]
+    onChange(next)
+  }
+  function reset() { onChange(COLUMN_DEFS) }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button className="btn btn-ghost btn-sm" onClick={() => setOpen(o => !o)} title="Customize columns" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <Settings2 size={14} /> Columns
+      </button>
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setOpen(false)} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 100,
+            background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)', padding: '8px 0', minWidth: 210,
+          }}>
+            <div style={{ padding: '4px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Show / reorder columns
+            </div>
+            {columns.map((col, i) => (
+              <div key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px', background: 'transparent', transition: 'background 0.1s' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle, rgba(0,0,0,0.04))'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <input type="checkbox" checked={col.visible} onChange={() => toggle(col.key)}
+                  style={{ cursor: 'pointer', accentColor: 'var(--accent)', width: 14, height: 14 }} />
+                <span style={{ flex: 1, fontSize: 13, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggle(col.key)}>
+                  {col.label || 'Call button'}
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  <button onClick={() => move(i, -1)} disabled={i === 0}
+                    style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: 'var(--text-muted)', padding: '0 3px', fontSize: 10, lineHeight: 1, opacity: i === 0 ? 0.25 : 0.7 }}>▲</button>
+                  <button onClick={() => move(i, 1)} disabled={i === columns.length - 1}
+                    style={{ background: 'none', border: 'none', cursor: i === columns.length - 1 ? 'default' : 'pointer', color: 'var(--text-muted)', padding: '0 3px', fontSize: 10, lineHeight: 1, opacity: i === columns.length - 1 ? 0.25 : 0.7 }}>▼</button>
+                </div>
+              </div>
+            ))}
+            <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, padding: '8px 14px 2px' }}>
+              <button onClick={reset} style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                Reset to default
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 function matchHeader(h) {
@@ -398,6 +495,12 @@ export default function Clients({ session, isAdmin, companyId }) {
   const [selectedClient, setSelectedClient] = useState(null)
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState('desc')
+  const [columns, setColumns] = useState(loadColumnPrefs)
+
+  function handleColumnsChange(next) {
+    setColumns(next)
+    saveColumnPrefs(next)
+  }
 
   const today = dayjs().format('YYYY-MM-DD')
 
@@ -464,7 +567,8 @@ export default function Clients({ session, isAdmin, companyId }) {
           <div className="page-title">Clients</div>
           <div className="page-subtitle">{clients.length} total · {filtered.length} shown</div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <ColumnOrganizer columns={columns} onChange={handleColumnsChange} />
           {isAdmin && (
             <button className="btn btn-ghost" onClick={() => setShowImport(true)}>
               <Upload size={15} /> Import CSV
@@ -521,88 +625,80 @@ export default function Clients({ session, isAdmin, companyId }) {
             <table>
               <thead>
                 <tr>
-                  <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Name <SortIcon k="name" /></span>
-                  </th>
-                  <th>Phone</th>
-                  <th style={{ width: 40 }}></th>
-                  <th>Last Note</th>
-                  <th>Add Note</th>
-                  <th onClick={() => handleSort('company_name')} style={{ cursor: 'pointer' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Company <SortIcon k="company_name" /></span>
-                  </th>
-                  <th onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Status <SortIcon k="status" /></span>
-                  </th>
-                  <th>Client Time</th>
-                  <th onClick={() => handleSort('deal_value')} style={{ cursor: 'pointer' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Deal <SortIcon k="deal_value" /></span>
-                  </th>
-                  <th onClick={() => handleSort('next_followup_date')} style={{ cursor: 'pointer' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Follow-up <SortIcon k="next_followup_date" /></span>
-                  </th>
-                  <th onClick={() => handleSort('assigned_to')} style={{ cursor: 'pointer' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>Assigned <SortIcon k="assigned_to" /></span>
-                  </th>
+                  {columns.filter(c => c.visible).map(col => (
+                    <th key={col.key}
+                      onClick={col.sortKey ? () => handleSort(col.sortKey) : undefined}
+                      style={{ cursor: col.sortKey ? 'pointer' : 'default', width: col.key === 'call' ? 40 : undefined }}
+                    >
+                      {col.sortKey
+                        ? <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>{col.label} <SortIcon k={col.sortKey} /></span>
+                        : col.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(c => (
                   <tr key={c.id} className={rowClass(c)} onClick={() => setSelectedClient(c)}>
-                    {/* 1 - Name */}
-                    <td style={{ fontWeight: 600 }}>{c.name}</td>
-                    {/* 2 - Phone + WhatsApp */}
-                    <td onClick={e => e.stopPropagation()}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span className="text-muted" style={{ fontSize: 13 }}>{c.phone}</span>
-                        <a
-                          href={whatsappUrl(c.phone)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-ghost btn-sm btn-icon"
-                          title={`WhatsApp ${c.name}`}
-                          style={{ color: '#25D366', padding: '2px 4px', flexShrink: 0 }}
-                        >
-                          <WhatsAppIcon size={13} />
-                        </a>
-                      </div>
-                    </td>
-                    {/* 3 - Call button */}
-                    <td onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
-                      <a
-                        href={`zoomphoneapp://call?number=${encodeURIComponent(c.phone)}`}
-                        className="btn btn-ghost btn-sm btn-icon"
-                        title={`Call ${c.name}`}
-                      >
-                        <Phone size={14} />
-                      </a>
-                    </td>
-                    {/* 4 - Last Note display */}
-                    <td onClick={e => e.stopPropagation()} style={{ verticalAlign: 'middle' }}>
-                      <LastNoteCell client={c} />
-                    </td>
-                    {/* 5 - Add Note textarea */}
-                    <td onClick={e => e.stopPropagation()} style={{ verticalAlign: 'middle' }}>
-                      <AddNoteCell client={c} session={session} onNoteAdded={fetchClients} />
-                    </td>
-                    {/* 5+ - rest */}
-                    <td className="text-muted">{c.company_name || '—'}</td>
-                    <td><StatusBadge status={c.status} /></td>
-                    <td><LocalTimeBadge phone={c.phone} /></td>
-                    <td>
-                      {c.deal_value
-                        ? <span className="deal-value positive">${Number(c.deal_value).toLocaleString()}</span>
-                        : <span className="text-muted">—</span>}
-                    </td>
-                    <td>
-                      {c.next_followup_date ? (
-                        <span style={{ color: c.next_followup_date < today ? 'var(--danger)' : c.next_followup_date === today ? 'var(--warning)' : 'inherit', fontWeight: c.next_followup_date <= today ? 600 : 400 }}>
-                          {dayjs(c.next_followup_date).format('MMM D')}
-                          {c.next_followup_date < today && ' ⚠'}
-                        </span>
-                      ) : '—'}
-                    </td>
-                    <td className="text-sm text-muted">{c.assigned_to ? c.assigned_to.split('@')[0] : '—'}</td>
+                    {columns.filter(col => col.visible).map(col => {
+                      switch (col.key) {
+                        case 'name':
+                          return <td key="name" style={{ fontWeight: 600 }}>{c.name}</td>
+                        case 'phone':
+                          return (
+                            <td key="phone" onClick={e => e.stopPropagation()}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span className="text-muted" style={{ fontSize: 13 }}>{c.phone}</span>
+                                <a href={whatsappUrl(c.phone)} target="_blank" rel="noopener noreferrer"
+                                  className="btn btn-ghost btn-sm btn-icon" title={`WhatsApp ${c.name}`}
+                                  style={{ color: '#25D366', padding: '2px 4px', flexShrink: 0 }}>
+                                  <WhatsAppIcon size={13} />
+                                </a>
+                              </div>
+                            </td>
+                          )
+                        case 'call':
+                          return (
+                            <td key="call" onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                              <a href={`zoomphoneapp://call?number=${encodeURIComponent(c.phone)}`}
+                                className="btn btn-ghost btn-sm btn-icon" title={`Call ${c.name}`}>
+                                <Phone size={14} />
+                              </a>
+                            </td>
+                          )
+                        case 'last_note':
+                          return <td key="last_note" onClick={e => e.stopPropagation()} style={{ verticalAlign: 'middle' }}><LastNoteCell client={c} /></td>
+                        case 'add_note':
+                          return <td key="add_note" onClick={e => e.stopPropagation()} style={{ verticalAlign: 'middle' }}><AddNoteCell client={c} session={session} onNoteAdded={fetchClients} /></td>
+                        case 'company_name':
+                          return <td key="company_name" className="text-muted">{c.company_name || '—'}</td>
+                        case 'status':
+                          return <td key="status"><StatusBadge status={c.status} /></td>
+                        case 'client_time':
+                          return <td key="client_time"><LocalTimeBadge phone={c.phone} /></td>
+                        case 'deal_value':
+                          return (
+                            <td key="deal_value">
+                              {c.deal_value ? <span className="deal-value positive">${Number(c.deal_value).toLocaleString()}</span> : <span className="text-muted">—</span>}
+                            </td>
+                          )
+                        case 'next_followup_date':
+                          return (
+                            <td key="next_followup_date">
+                              {c.next_followup_date ? (
+                                <span style={{ color: c.next_followup_date < today ? 'var(--danger)' : c.next_followup_date === today ? 'var(--warning)' : 'inherit', fontWeight: c.next_followup_date <= today ? 600 : 400 }}>
+                                  {dayjs(c.next_followup_date).format('MMM D')}
+                                  {c.next_followup_date < today && ' ⚠'}
+                                </span>
+                              ) : '—'}
+                            </td>
+                          )
+                        case 'assigned_to':
+                          return <td key="assigned_to" className="text-sm text-muted">{c.assigned_to ? c.assigned_to.split('@')[0] : '—'}</td>
+                        default:
+                          return <td key={col.key} />
+                      }
+                    })}
                   </tr>
                 ))}
               </tbody>
