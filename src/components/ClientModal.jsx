@@ -312,6 +312,7 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
                           type="datetime-local"
                           autoFocus
                           value={followupVal}
+                          min={dayjs().format('YYYY-MM-DDTHH:mm')}
                           onChange={e => setFollowupVal(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') handleSaveFollowup(followupVal); if (e.key === 'Escape') setFollowupEditing(false) }}
                           style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14 }}

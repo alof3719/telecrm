@@ -519,6 +519,7 @@ function FollowUpCell({ client, onUpdate }) {
           type="datetime-local"
           autoFocus
           value={val}
+          min={dayjs().format('YYYY-MM-DDTHH:mm')}
           onChange={e => setVal(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
           style={{ fontSize: 12, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', outline: 'none' }}
