@@ -484,6 +484,63 @@ function AddNoteCell({ client, session, onNoteAdded }) {
   )
 }
 
+function FollowUpCell({ client, onUpdate }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(client.next_followup_date || '')
+  const today = dayjs().format('YYYY-MM-DD')
+
+  useEffect(() => setVal(client.next_followup_date || ''), [client.next_followup_date])
+
+  async function save(date) {
+    const { data, error } = await supabase
+      .from('clients')
+      .update({ next_followup_date: date || null })
+      .eq('id', client.id)
+      .select()
+      .single()
+    if (!error) onUpdate(data)
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <div onClick={e => e.stopPropagation()}>
+        <input
+          type="date"
+          autoFocus
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          onBlur={() => save(val)}
+          onKeyDown={e => { if (e.key === 'Enter') save(val); if (e.key === 'Escape') setEditing(false) }}
+          style={{ fontSize: 12, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', outline: 'none' }}
+        />
+      </div>
+    )
+  }
+
+  const d = client.next_followup_date
+  return (
+    <div
+      onClick={e => { e.stopPropagation(); setEditing(true) }}
+      title={d ? 'Click to change' : 'Click to set follow-up date'}
+      style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6,
+        border: `1px dashed ${d ? 'transparent' : 'var(--border)'}`,
+        background: d ? 'transparent' : 'var(--bg-subtle, rgba(0,0,0,0.03))',
+        transition: 'border-color 0.15s' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'var(--bg-subtle, rgba(0,0,0,0.04))' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = d ? 'transparent' : 'var(--border)'; e.currentTarget.style.background = d ? 'transparent' : 'var(--bg-subtle, rgba(0,0,0,0.03))' }}
+    >
+      {d ? (
+        <span style={{ fontSize: 13, fontWeight: d <= today ? 600 : 400, color: d < today ? 'var(--danger)' : d === today ? 'var(--warning)' : 'inherit' }}>
+          {dayjs(d).format('MMM D')}{d < today && ' ⚠'}
+        </span>
+      ) : (
+        <span style={{ fontSize: 12, color: 'var(--text-muted)', opacity: 0.7 }}>+ Set date</span>
+      )}
+    </div>
+  )
+}
+
 export default function Clients({ session, isAdmin, companyId }) {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
@@ -684,13 +741,8 @@ export default function Clients({ session, isAdmin, companyId }) {
                           )
                         case 'next_followup_date':
                           return (
-                            <td key="next_followup_date">
-                              {c.next_followup_date ? (
-                                <span style={{ color: c.next_followup_date < today ? 'var(--danger)' : c.next_followup_date === today ? 'var(--warning)' : 'inherit', fontWeight: c.next_followup_date <= today ? 600 : 400 }}>
-                                  {dayjs(c.next_followup_date).format('MMM D')}
-                                  {c.next_followup_date < today && ' ⚠'}
-                                </span>
-                              ) : '—'}
+                            <td key="next_followup_date" onClick={e => e.stopPropagation()}>
+                              <FollowUpCell client={c} onUpdate={updated => setClients(prev => prev.map(x => x.id === updated.id ? updated : x))} />
                             </td>
                           )
                         case 'assigned_to':

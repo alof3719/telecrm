@@ -4,7 +4,7 @@ import StatusBadge, { STATUS_LABELS } from './StatusBadge'
 import { getClientLocalTime, getTimezoneLabel } from '../lib/timezones'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { X, Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock, Trash2 } from 'lucide-react'
+import { X, Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock, Trash2, CalendarDays } from 'lucide-react'
 
 dayjs.extend(relativeTime)
 
@@ -52,6 +52,8 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
   const [editMode, setEditMode] = useState(false)
   const [form, setForm] = useState({ ...initialClient })
   const [deleting, setDeleting] = useState(false)
+  const [followupEditing, setFollowupEditing] = useState(false)
+  const [followupVal, setFollowupVal] = useState(initialClient.next_followup_date || '')
 
   const localTime = getClientLocalTime(client.phone)
   const city = getTimezoneLabel(client.phone)
@@ -122,6 +124,22 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
       alert('Delete failed: ' + error.message)
     }
     setDeleting(false)
+  }
+
+  async function handleSaveFollowup(val) {
+    const { data, error } = await supabase
+      .from('clients')
+      .update({ next_followup_date: val || null })
+      .eq('id', client.id)
+      .select()
+      .single()
+    if (!error) {
+      setClient(data)
+      setForm(data)
+      onUpdate(data)
+      setFollowupVal(val)
+    }
+    setFollowupEditing(false)
   }
 
   async function handleSaveInfo() {
@@ -272,7 +290,6 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
                     ['Company', client.company_name || '—'],
                     ['Assigned To', client.assigned_to || '—'],
                     ['Deal Value', client.deal_value ? `$${Number(client.deal_value).toLocaleString()}` : '—'],
-                    ['Next Follow-up', client.next_followup_date ? dayjs(client.next_followup_date).format('MMM D, YYYY') : '—'],
                     ['Last Call', client.last_call_date ? dayjs(client.last_call_date).format('MMM D, YYYY h:mm A') : '—'],
                     ['Last Comment', client.last_comment_date ? dayjs(client.last_comment_date).fromNow() : '—'],
                     ['Created', dayjs(client.created_at).format('MMM D, YYYY')],
@@ -282,6 +299,43 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
                       <div style={{ fontWeight: 500, marginTop: 2 }}>{v}</div>
                     </div>
                   ))}
+                  {/* Inline editable follow-up */}
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div className="text-muted text-sm" style={{ marginBottom: 4 }}>Next Follow-up</div>
+                    {followupEditing ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <input
+                          type="date"
+                          autoFocus
+                          value={followupVal}
+                          onChange={e => setFollowupVal(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleSaveFollowup(followupVal); if (e.key === 'Escape') setFollowupEditing(false) }}
+                          style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14 }}
+                        />
+                        <button className="btn btn-primary btn-sm" onClick={() => handleSaveFollowup(followupVal)}>Save</button>
+                        {followupVal && <button className="btn btn-ghost btn-sm" onClick={() => handleSaveFollowup('')}>Clear</button>}
+                        <button className="btn btn-ghost btn-sm" onClick={() => setFollowupEditing(false)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => setFollowupEditing(true)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 12px', borderRadius: 7, border: '1px dashed var(--border)', background: 'var(--bg-subtle, rgba(0,0,0,0.03))', transition: 'border-color 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                        title="Click to set follow-up date"
+                      >
+                        <CalendarDays size={14} style={{ color: 'var(--accent)' }} />
+                        <span style={{
+                          fontWeight: 500,
+                          color: client.next_followup_date
+                            ? (client.next_followup_date < dayjs().format('YYYY-MM-DD') ? 'var(--danger)' : client.next_followup_date === dayjs().format('YYYY-MM-DD') ? 'var(--warning)' : 'inherit')
+                            : 'var(--text-muted)',
+                        }}>
+                          {client.next_followup_date ? dayjs(client.next_followup_date).format('MMM D, YYYY') : 'Set follow-up date…'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
