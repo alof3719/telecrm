@@ -225,24 +225,14 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
                       <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
                     </div>
                     <div className="form-group">
-                      <label>Phone * {!isAdmin && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(admin only)</span>}</label>
-                      <input
-                        value={form.phone}
-                        onChange={e => setForm({ ...form, phone: e.target.value })}
-                        disabled={!isAdmin}
-                        style={!isAdmin ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                      />
+                      <label>Phone *</label>
+                      <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
                     </div>
                   </div>
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Email {!isAdmin && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(admin only)</span>}</label>
-                      <input
-                        value={form.email || ''}
-                        onChange={e => setForm({ ...form, email: e.target.value })}
-                        disabled={!isAdmin}
-                        style={!isAdmin ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                      />
+                      <label>Email</label>
+                      <input value={form.email || ''} onChange={e => setForm({ ...form, email: e.target.value })} />
                     </div>
                     <div className="form-group">
                       <label>Company</label>
