@@ -71,7 +71,7 @@ function LocalTimeBadge({ phone }) {
   )
 }
 
-function ImportModal({ session, onClose, onImported }) {
+function ImportModal({ session, companyId, onClose, onImported }) {
   const [step, setStep] = useState('upload') // 'upload' | 'preview' | 'importing' | 'done'
   const [rows, setRows] = useState([])
   const [mapping, setMapping] = useState({})
@@ -113,7 +113,7 @@ function ImportModal({ session, onClose, onImported }) {
   async function handleImport() {
     setStep('importing')
     const records = rows.map(row => {
-      const r = { status: 'new' }
+      const r = { status: 'new', company_id: companyId }
       Object.entries(mapping).forEach(([header, field]) => {
         const val = row[header]?.trim()
         if (!val) return
@@ -339,7 +339,7 @@ function QuickNoteInline({ client, session, onNoteAdded }) {
   )
 }
 
-export default function Clients({ session, isAdmin }) {
+export default function Clients({ session, isAdmin, companyId }) {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -567,6 +567,7 @@ export default function Clients({ session, isAdmin }) {
       {showAddForm && (
         <AddClientForm
           session={session}
+          companyId={companyId}
           onClose={() => setShowAddForm(false)}
           onAdded={c => setClients(prev => [c, ...prev])}
         />
@@ -575,6 +576,7 @@ export default function Clients({ session, isAdmin }) {
       {showImport && (
         <ImportModal
           session={session}
+          companyId={companyId}
           onClose={() => setShowImport(false)}
           onImported={fetchClients}
         />

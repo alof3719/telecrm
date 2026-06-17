@@ -44,7 +44,7 @@ function Layout({ session, isAdmin, onLogout }) {
       <main className="main-content">
         <Routes>
           <Route path="/dashboard" element={<Dashboard session={session} />} />
-          <Route path="/clients" element={<Clients session={session} isAdmin={isAdmin} />} />
+          <Route path="/clients" element={<Clients session={session} isAdmin={isAdmin} companyId={companyId} />} />
           {isAdmin && (
             <Route path="/users" element={<UsersPage session={session} />} />
           )}
@@ -59,14 +59,16 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [companyId, setCompanyId] = useState(null)
 
   async function fetchRole(userId) {
     const { data } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, company_id')
       .eq('id', userId)
       .single()
     setIsAdmin(data?.role === 'admin')
+    setCompanyId(data?.company_id || null)
   }
 
   useEffect(() => {
@@ -78,7 +80,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (session) fetchRole(session.user.id)
-      else setIsAdmin(false)
+      else { setIsAdmin(false); setCompanyId(null) }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -98,7 +100,7 @@ export default function App() {
   return (
     <BrowserRouter>
       {session ? (
-        <Layout session={session} isAdmin={isAdmin} onLogout={handleLogout} />
+        <Layout session={session} isAdmin={isAdmin} companyId={companyId} onLogout={handleLogout} />
       ) : (
         <Routes>
           <Route path="*" element={<Login />} />

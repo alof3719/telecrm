@@ -17,7 +17,7 @@ const EMPTY = {
   status: 'new', deal_value: '', assigned_to: '', next_followup_date: '',
 }
 
-export default function AddClientForm({ onClose, onAdded, session }) {
+export default function AddClientForm({ onClose, onAdded, session, companyId }) {
   const [form, setForm] = useState({ ...EMPTY, assigned_to: session.user.email })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -41,6 +41,7 @@ export default function AddClientForm({ onClose, onAdded, session }) {
       deal_value: form.deal_value ? parseFloat(form.deal_value) : null,
       assigned_to: form.assigned_to.trim() || null,
       next_followup_date: form.next_followup_date || null,
+      company_id: companyId,
     }).select().single()
 
     if (error) { setError(error.message); setSaving(false); return }
