@@ -70,18 +70,18 @@ This step makes Zoom Phone automatically log every call to the CRM.
 
 ### 4a — Deploy the webhook function
 
-Install the Supabase CLI, then in your terminal:
+Install the Supabase CLI, then in your terminal: project id is cjrxjifgbggqvrqfltka
 
 ```bash
 supabase login
 supabase link --project-ref YOUR_PROJECT_ID
-supabase secrets set ZOOM_WEBHOOK_SECRET=your-secret-here
+supabase secrets set ZOOM_WEBHOOK_SECRET=tz-bOI2pQ7WFieUf4-6lgw
 supabase functions deploy zoom-webhook
 ```
 
 Your webhook URL will be:
 ```
-https://YOUR_PROJECT_ID.supabase.co/functions/v1/zoom-webhook
+https://cjrxjifgbggqvrqfltka.supabase.co/functions/v1/zoom-webhook
 ```
 
 ### 4b — Create the Zoom app
@@ -94,7 +94,7 @@ https://YOUR_PROJECT_ID.supabase.co/functions/v1/zoom-webhook
    - Subscribe to these events:
      - `phone.call_ended`
      - `phone.callee_missed`
-5. Copy the **Secret Token** Zoom gives you
+5. Copy the **Secret Token** Zoom gives you - tz-bOI2pQ7WFieUf4-6lgw
 6. Run: `supabase secrets set ZOOM_WEBHOOK_SECRET=THE_TOKEN_YOU_COPIED`
 7. Redeploy: `supabase functions deploy zoom-webhook`
 

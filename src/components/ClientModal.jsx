@@ -4,7 +4,7 @@ import StatusBadge, { STATUS_LABELS } from './StatusBadge'
 import { getClientLocalTime, getTimezoneLabel } from '../lib/timezones'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { X, Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock } from 'lucide-react'
+import { X, Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock, Trash2 } from 'lucide-react'
 
 dayjs.extend(relativeTime)
 
@@ -42,7 +42,7 @@ function CallItem({ call }) {
   )
 }
 
-export default function ClientModal({ client: initialClient, onClose, onUpdate, session }) {
+export default function ClientModal({ client: initialClient, onClose, onUpdate, onDelete, session, isAdmin }) {
   const [client, setClient] = useState(initialClient)
   const [tab, setTab] = useState('info')
   const [notes, setNotes] = useState([])
@@ -51,6 +51,7 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
   const [saving, setSaving] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [form, setForm] = useState({ ...initialClient })
+  const [deleting, setDeleting] = useState(false)
 
   const localTime = getClientLocalTime(client.phone)
   const city = getTimezoneLabel(client.phone)
@@ -108,6 +109,19 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
         .eq('id', client.id)
     }
     setSaving(false)
+  }
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete "${client.name}"? This cannot be undone.`)) return
+    setDeleting(true)
+    const { error } = await supabase.from('clients').delete().eq('id', client.id)
+    if (!error) {
+      onDelete(client.id)
+      onClose()
+    } else {
+      alert('Delete failed: ' + error.message)
+    }
+    setDeleting(false)
   }
 
   async function handleSaveInfo() {
@@ -325,6 +339,17 @@ export default function ClientModal({ client: initialClient, onClose, onUpdate, 
             ) : (
               <button className="btn btn-ghost" onClick={() => setEditMode(true)}>Edit Client</button>
             )
+          )}
+          {isAdmin && !editMode && (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ color: 'var(--danger)', marginLeft: 'auto' }}
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              <Trash2 size={14} />
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
           )}
           <button className="btn btn-ghost" onClick={onClose}>Close</button>
         </div>

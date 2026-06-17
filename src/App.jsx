@@ -4,9 +4,10 @@ import { supabase } from './lib/supabase'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
-import { LayoutDashboard, Users, LogOut, Phone } from 'lucide-react'
+import UsersPage from './pages/Users'
+import { LayoutDashboard, Users, LogOut, Phone, Shield } from 'lucide-react'
 
-function Layout({ session, onLogout }) {
+function Layout({ session, isAdmin, onLogout }) {
   return (
     <div className="app-layout">
       <aside className="sidebar">
@@ -23,6 +24,12 @@ function Layout({ session, onLogout }) {
             <Users size={18} />
             Clients
           </NavLink>
+          {isAdmin && (
+            <NavLink to="/users" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+              <Shield size={18} />
+              Users
+            </NavLink>
+          )}
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -37,7 +44,10 @@ function Layout({ session, onLogout }) {
       <main className="main-content">
         <Routes>
           <Route path="/dashboard" element={<Dashboard session={session} />} />
-          <Route path="/clients" element={<Clients session={session} />} />
+          <Route path="/clients" element={<Clients session={session} isAdmin={isAdmin} />} />
+          {isAdmin && (
+            <Route path="/users" element={<UsersPage session={session} />} />
+          )}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>
@@ -48,14 +58,27 @@ function Layout({ session, onLogout }) {
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  async function fetchRole(userId) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single()
+    setIsAdmin(data?.role === 'admin')
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
+      if (session) fetchRole(session.user.id)
       setLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
+      if (session) fetchRole(session.user.id)
+      else setIsAdmin(false)
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -75,7 +98,7 @@ export default function App() {
   return (
     <BrowserRouter>
       {session ? (
-        <Layout session={session} onLogout={handleLogout} />
+        <Layout session={session} isAdmin={isAdmin} onLogout={handleLogout} />
       ) : (
         <Routes>
           <Route path="*" element={<Login />} />
