@@ -5,7 +5,9 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import UsersPage from './pages/Users'
-import { LayoutDashboard, Users, LogOut, Phone, Shield } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, Phone, Shield, TrendingUp, Settings } from 'lucide-react'
+import Trading from './pages/Trading'
+import TradingAdmin from './pages/TradingAdmin'
 
 function Layout({ session, isAdmin, companyId, onLogout }) {
   return (
@@ -30,6 +32,16 @@ function Layout({ session, isAdmin, companyId, onLogout }) {
               Users
             </NavLink>
           )}
+          <NavLink to="/trading" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            <TrendingUp size={18} />
+            Trading
+          </NavLink>
+          {isAdmin && (
+            <NavLink to="/trading/admin" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+              <Settings size={18} />
+              Trading Admin
+            </NavLink>
+          )}
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -47,6 +59,10 @@ function Layout({ session, isAdmin, companyId, onLogout }) {
           <Route path="/clients" element={<Clients session={session} isAdmin={isAdmin} companyId={companyId} />} />
           {isAdmin && (
             <Route path="/users" element={<UsersPage session={session} />} />
+          )}
+          <Route path="/trading" element={<Trading session={session} companyId={companyId} />} />
+          {isAdmin && (
+            <Route path="/trading/admin" element={<TradingAdmin session={session} companyId={companyId} />} />
           )}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

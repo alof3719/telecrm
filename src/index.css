@@ -17,6 +17,10 @@
   --success: #10b981;
   --warning: #f59e0b;
 
+  /* Trading colors */
+  --gain: #10b981;
+  --loss: #ef4444;
+
   /* Status colors */
   --s-new: #3b82f6;
   --s-no_answer: #6b7280;
