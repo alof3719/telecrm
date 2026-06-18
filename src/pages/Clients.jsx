@@ -229,7 +229,7 @@ function ImportModal({ session, companyId, onClose, onImported }) {
     for (let i = 0; i < valid.length; i += 50) {
       const batch = valid.slice(i, i + 50)
       const { error } = await supabase.from('clients').insert(batch)
-      if (error) fail += batch.length
+      if (error) { console.error('Import error:', error); fail += batch.length }
       else ok += batch.length
     }
 
