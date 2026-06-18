@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { autoSetupTradingAccounts } from '../lib/tradingSetup'
 import { X } from 'lucide-react'
 
 const STATUSES = [
@@ -45,6 +46,7 @@ export default function AddClientForm({ onClose, onAdded, session, companyId }) 
     }).select().single()
 
     if (error) { setError(error.message); setSaving(false); return }
+    autoSetupTradingAccounts(data, companyId)
     onAdded(data)
     onClose()
   }

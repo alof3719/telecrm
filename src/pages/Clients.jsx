@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { autoSetupTradingAccounts } from '../lib/tradingSetup'
 import StatusBadge from '../components/StatusBadge'
 import ClientModal from '../components/ClientModal'
 import AddClientForm from '../components/AddClientForm'
@@ -234,7 +235,10 @@ function ImportModal({ session, companyId, onClose, onImported }) {
     setImported(ok)
     setFailed(fail + skipped)
     setStep('done')
-    if (ok > 0) onImported()
+    if (ok > 0) {
+      onImported()
+      autoSetupTradingAccounts(valid, companyId)
+    }
   }
 
   const mappedFields = Object.values(mapping)
