@@ -217,7 +217,6 @@ function ImportModal({ session, companyId, onClose, onImported }) {
         if (field === 'deal_value') r[field] = parseFloat(val.replace(/[$,]/g, '')) || null
         else r[field] = val
       })
-      r.created_by = session.user.email
       return r
     }).filter(r => r.name && r.phone) // require name + phone
 
