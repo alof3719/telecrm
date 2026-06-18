@@ -21,22 +21,24 @@ function AccountModal({ account, clients, companyId, onClose, onSaved }) {
     setSaving(true); setError('')
     try {
       if (account) {
-        const { error } = await supabase
+        const { error: err } = await supabase
           .from('trading_accounts')
           .update({ balance: bal })
           .eq('id', account.id)
-        if (error) throw error
+        if (err) throw err
       } else {
         const email = selectedClient?.email
-        if (!email) { setError('Selected client has no email.'); setSaving(false); return }
-        const { error } = await supabase
+        if (!email) { setError('This client has no email. Add one in the Clients page first.'); setSaving(false); return }
+        const { error: err } = await supabase
           .from('trading_accounts')
           .insert({ email, company_id: companyId, balance: bal })
-        if (error) throw error
+        console.log('insert result:', err)
+        if (err) throw err
       }
       onSaved()
       onClose()
     } catch (e) {
+      console.error('AccountModal save error:', e)
       setError(e.message || 'Save failed.')
     } finally { setSaving(false) }
   }
@@ -105,12 +107,13 @@ export default function TradingAdmin({ session, companyId }) {
   const [editAccount, setEditAccount] = useState(null)
 
   async function fetchData() {
-    const [{ data: accs }, { data: leads }] = await Promise.all([
+    const [{ data: accs, error: accsErr }, { data: leads, error: leadsErr }] = await Promise.all([
       supabase.from('trading_accounts').select('*').order('email'),
       supabase.from('clients').select('id, name, email').order('name'),
     ])
+    if (accsErr) console.error('trading_accounts fetch error:', accsErr)
+    if (leadsErr) console.error('clients fetch error:', leadsErr)
     setAccounts(accs || [])
-    // Only show clients who don't already have a trading account
     const existingEmails = new Set((accs || []).map(a => a.email?.toLowerCase()).filter(Boolean))
     setClients((leads || []).filter(c => !existingEmails.has(c.email?.toLowerCase())))
     setLoading(false)
