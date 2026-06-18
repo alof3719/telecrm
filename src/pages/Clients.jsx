@@ -756,7 +756,7 @@ export default function Clients({ session, isAdmin, companyId }) {
                         case 'call':
                           return (
                             <td key="call" onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
-                              <a href={`zoomphoneapp://call?callee=${encodeURIComponent(c.phone)}`}
+                              <a href={`tel:${c.phone}`}
                                 className="btn btn-ghost btn-sm btn-icon" title={`Call ${c.name}`}>
                                 <Phone size={14} />
                               </a>
