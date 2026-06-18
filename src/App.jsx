@@ -8,6 +8,7 @@ import UsersPage from './pages/Users'
 import { LayoutDashboard, Users, LogOut, Phone, Shield, TrendingUp, Settings } from 'lucide-react'
 import Trading from './pages/Trading'
 import TradingAdmin from './pages/TradingAdmin'
+import ClientPortal from './pages/ClientPortal'
 
 function Layout({ session, isAdmin, companyId, onLogout }) {
   return (
@@ -75,28 +76,49 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isClient, setIsClient] = useState(false)
   const [companyId, setCompanyId] = useState(null)
 
-  async function fetchRole(userId) {
+  async function fetchRole(userId, userEmail) {
     const { data } = await supabase
       .from('profiles')
       .select('role, company_id')
       .eq('id', userId)
       .single()
+
+    // Auto-link invited clients: if a pending trading account exists for this email
+    if (data?.role === 'user' || !data?.role) {
+      const { data: pending } = await supabase
+        .from('trading_accounts')
+        .select('id, company_id')
+        .eq('email', userEmail)
+        .is('user_id', null)
+        .maybeSingle()
+      if (pending) {
+        await supabase.from('trading_accounts').update({ user_id: userId }).eq('id', pending.id)
+        await supabase.from('profiles').update({ role: 'client', company_id: pending.company_id }).eq('id', userId)
+        setIsClient(true)
+        setIsAdmin(false)
+        setCompanyId(pending.company_id)
+        return
+      }
+    }
+
     setIsAdmin(data?.role === 'admin')
+    setIsClient(data?.role === 'client')
     setCompanyId(data?.company_id || null)
   }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      if (session) fetchRole(session.user.id)
+      if (session) fetchRole(session.user.id, session.user.email)
       setLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      if (session) fetchRole(session.user.id)
-      else { setIsAdmin(false); setCompanyId(null) }
+      if (session) fetchRole(session.user.id, session.user.email)
+      else { setIsAdmin(false); setIsClient(false); setCompanyId(null) }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -116,7 +138,9 @@ export default function App() {
   return (
     <BrowserRouter>
       {session ? (
-        <Layout session={session} isAdmin={isAdmin} companyId={companyId} onLogout={handleLogout} />
+        isClient
+          ? <ClientPortal session={session} onLogout={handleLogout} />
+          : <Layout session={session} isAdmin={isAdmin} companyId={companyId} onLogout={handleLogout} />
       ) : (
         <Routes>
           <Route path="*" element={<Login />} />
