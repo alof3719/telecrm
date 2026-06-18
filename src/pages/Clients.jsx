@@ -38,10 +38,9 @@ const COLUMN_MAP = {
   phone: ['phone', 'phone number', 'tel', 'telephone', 'mobile', 'cell'],
   email: ['email', 'email address', 'e-mail'],
   company_name: ['company', 'company name', 'business', 'organization', 'organisation'],
-  deal_value: ['deal', 'deal value', 'value', 'amount', 'price'],
-  assigned_to: ['assigned', 'assigned to', 'rep', 'sales rep', 'agent'],
-  notes: ['notes', 'note', 'comments', 'comment', 'description'],
-  next_followup_date: ['followup', 'follow up', 'follow-up date', 'next followup', 'next follow-up'],
+  deal_value: ['deal', 'deal value', 'deal_value', 'value', 'amount', 'price'],
+  assigned_to: ['assigned', 'assigned to', 'assigned_to', 'rep', 'sales rep', 'agent'],
+  next_followup_date: ['followup', 'follow up', 'follow-up date', 'next followup', 'next follow-up', 'next_followup_date'],
 }
 
 // ── Column definitions & persistence ──────────────────────────────────────────
@@ -178,7 +177,7 @@ function ImportModal({ session, companyId, onClose, onImported }) {
   const fileRef = useRef()
 
   function downloadTemplate() {
-    const csv = 'name,phone,email,company,deal_value,assigned_to,notes,next_followup_date\nJohn Smith,+12125551234,john@acme.com,Acme Corp,5000,rep@yourteam.com,Interested in package A,2024-12-01\n'
+    const csv = 'name,phone,email,company,deal_value,assigned_to,next_followup_date\nJohn Smith,+12125551234,john@acme.com,Acme Corp,5000,rep@yourteam.com,2024-12-01\n'
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
